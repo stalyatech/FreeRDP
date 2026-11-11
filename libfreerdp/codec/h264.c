@@ -759,13 +759,22 @@ static BOOL CALLBACK h264_register_subsystems(WINPR_ATTR_UNUSED PINIT_ONCE once,
 		i++;
 	}
 #endif
+#if defined(__ANDROID__) && defined(WITH_VIDEO_FFMPEG)
+	/* OpenH264 does not apply long-term reference list modification correctly. AVC444 streams
+	 * from hardware encoders (e.g. AMD) rely on it to keep luma and chroma frames apart, so
+	 * prefer libavcodec here, it is also faster on arm64. */
+	{
+		subSystems[i] = &g_Subsystem_libavcodec;
+		i++;
+	}
+#endif
 #ifdef WITH_OPENH264
 	{
 		subSystems[i] = &g_Subsystem_OpenH264;
 		i++;
 	}
 #endif
-#ifdef WITH_VIDEO_FFMPEG
+#if defined(WITH_VIDEO_FFMPEG) && !defined(__ANDROID__)
 	{
 		subSystems[i] = &g_Subsystem_libavcodec;
 		i++;
