@@ -381,6 +381,27 @@ public class SessionInputManager
 		LibFreeRDP.sendCursorEvent(instance, 0, 0, Mouse.getHScrollEvent(context, right));
 	}
 
+	// RDP wheel rotation is a 9-bit signed value, so larger amounts are split.
+	private static final int MAX_WHEEL_STEP = 240;
+
+	@Override public void onSessionViewWheel(int vAmount, int hAmount)
+	{
+		if (instance == 0)
+			return;
+		while (vAmount != 0)
+		{
+			final int step = Math.max(-MAX_WHEEL_STEP, Math.min(MAX_WHEEL_STEP, vAmount));
+			LibFreeRDP.sendCursorEvent(instance, 0, 0, Mouse.getScrollEvent(context, step));
+			vAmount -= step;
+		}
+		while (hAmount != 0)
+		{
+			final int step = Math.max(-MAX_WHEEL_STEP, Math.min(MAX_WHEEL_STEP, hAmount));
+			LibFreeRDP.sendCursorEvent(instance, 0, 0, Mouse.getHScrollEvent(context, step));
+			hAmount -= step;
+		}
+	}
+
 	// ****************************************************************************
 	// TouchPointerView.TouchPointerListener
 
@@ -454,7 +475,7 @@ public class SessionInputManager
 
 	@Override public void onTouchPointerResetScrollZoom()
 	{
-		sessionView.setZoom(1.0f);
+		sessionView.setAutoFit(true);
 		scrollView.scrollTo(0, 0);
 	}
 
@@ -596,6 +617,9 @@ public class SessionInputManager
 
 		@Override public boolean onScaleBegin(ScaleGestureDetector detector)
 		{
+			// Start from the current zoom (it may have been set by fit-to-screen).
+			scaleFactor = sessionView.getZoom();
+			sessionView.setAutoFit(false);
 			scrollView.setScrollEnabled(false);
 			return true;
 		}
@@ -604,7 +628,7 @@ public class SessionInputManager
 		{
 			// calc scale factor
 			scaleFactor *= detector.getScaleFactor();
-			scaleFactor = Math.max(SessionView.MIN_SCALE_FACTOR,
+			scaleFactor = Math.max(sessionView.getMinZoom(),
 			                       Math.min(scaleFactor, SessionView.MAX_SCALE_FACTOR));
 			sessionView.setZoom(scaleFactor);
 

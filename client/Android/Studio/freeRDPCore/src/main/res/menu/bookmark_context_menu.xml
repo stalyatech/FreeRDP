@@ -11,6 +11,9 @@
         android:id="@+id/bookmark_edit"
         app:showAsAction="ifRoom"
         android:title="@string/menu_edit" />
+    <item
+        android:id="@+id/bookmark_appearance"
+        android:title="@string/bookmark_appearance" />
 
     <item
         android:id="@+id/bookmark_delete"

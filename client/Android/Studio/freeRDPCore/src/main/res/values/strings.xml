@@ -77,6 +77,11 @@
         <item>1440x900</item>
         <item>1920x1080</item>
         <item>1920x1200</item>
+        <item>1500x1000</item>
+        <item>1800x1200</item>
+        <item>2100x1400</item>
+        <item>2250x1500</item>
+        <item>2400x1600</item>
     </string-array>
     <!-- This array is used as is in code,
 	do not translate! -->
@@ -92,6 +97,11 @@
         <item>1440x900</item>
         <item>1920x1080</item>
         <item>1920x1200</item>
+        <item>1500x1000</item>
+        <item>1800x1200</item>
+        <item>2100x1400</item>
+        <item>2250x1500</item>
+        <item>2400x1600</item>
     </string-array>
     <string name="settings_width">Width</string>
     <string name="settings_height">Height</string>
@@ -340,4 +350,12 @@
     <string name="accessibility_keyboard_description">Sends physical keyboard shortcuts (e.g. Win key) to the remote desktop.</string>
     <string name="pref_title_keyboard_accessibility">Physical Keyboard Shortcuts</string>
     <string name="pref_summary_keyboard_accessibility">Send Win key and system shortcuts to the remote desktop. Requires accessibility permission.</string>
+    <!-- connection list view mode and tile appearance -->
+    <string name="menu_view_grid">Icon view</string>
+    <string name="menu_view_list">List view</string>
+    <string name="bookmark_appearance">Icon and color</string>
+    <string name="bookmark_appearance_icon">Icon</string>
+    <string name="bookmark_appearance_color">Color</string>
+    <string name="bookmark_appearance_save">Save</string>
+    <string name="bookmark_appearance_auto">Automatic</string>
 </resources>

@@ -491,6 +491,13 @@ public class KeyboardMapper
 				if (isWinKeyDown)
 					isWinComboUsed = true;
 
+				// Hardware keyboard: type the character Android's layout produces for
+				// punctuation/national keys and AltGr combinations (e.g. Turkish Q: o-umlaut,
+				// c-cedilla, AltGr+key symbols). Sending the US-position VK instead lets the
+				// server map it with its own layout and gives the wrong character.
+				if (processLayoutCharacter(event))
+					return true;
+
 				boolean modifierActive = isModifierPressed();
 				// if a modifier is pressed we will send a VK event (if possible) so that key
 				// combinations will be recognized correctly. Otherwise we will send the unicode
@@ -554,6 +561,87 @@ public class KeyboardMapper
 				break;
 		}
 		return false;
+	}
+
+	// Pending dead key (combining accent) from the hardware keyboard layout, 0 = none.
+	private int pendingDeadAccent = 0;
+
+	// Returns true when the key was handled as a layout character (or a dead key).
+	private boolean processLayoutCharacter(KeyEvent event)
+	{
+		final int keyCode = event.getKeyCode();
+		// Letters and digits keep the VK path: same positions on Q layouts, and
+		// Shift+digit symbols are produced by the server layout.
+		final boolean letterOrDigit = (keyCode >= KeyEvent.KEYCODE_A &&
+		                               keyCode <= KeyEvent.KEYCODE_Z) ||
+		                              (keyCode >= KeyEvent.KEYCODE_0 &&
+		                               keyCode <= KeyEvent.KEYCODE_9);
+		final int meta = event.getMetaState();
+		final boolean altGr = (meta & KeyEvent.META_ALT_RIGHT_ON) != 0;
+		final boolean shortcut = event.isCtrlPressed() ||
+		                         (meta & KeyEvent.META_ALT_LEFT_ON) != 0 ||
+		                         event.isMetaPressed() || isWinKeyDown || ctrlPressed ||
+		                         altPressed || winPressed;
+		if (shortcut || (letterOrDigit && !altGr))
+			return false;
+		if (event.getDeviceId() == KeyCharacterMap.VIRTUAL_KEYBOARD)
+			return false;
+
+		final int uni = event.getUnicodeChar();
+		if ((uni & KeyCharacterMap.COMBINING_ACCENT) != 0)
+		{
+			pendingDeadAccent = uni & KeyCharacterMap.COMBINING_ACCENT_MASK;
+			return true;
+		}
+		if (uni <= 0x20 || uni == 0x7f)
+		{
+			// Space after a dead key types the accent itself.
+			if (uni == 0x20 && pendingDeadAccent != 0)
+			{
+				listener.processUnicodeKey(spacingAccent(pendingDeadAccent));
+				pendingDeadAccent = 0;
+				return true;
+			}
+			return false;
+		}
+
+		if (pendingDeadAccent != 0)
+		{
+			final int composed = KeyCharacterMap.getDeadChar(pendingDeadAccent, uni);
+			if (composed != 0)
+				listener.processUnicodeKey(composed);
+			else
+			{
+				listener.processUnicodeKey(spacingAccent(pendingDeadAccent));
+				listener.processUnicodeKey(uni);
+			}
+			pendingDeadAccent = 0;
+		}
+		else
+			listener.processUnicodeKey(uni);
+		return true;
+	}
+
+	// Visible (spacing) form of a combining accent.
+	private static int spacingAccent(int accent)
+	{
+		switch (accent)
+		{
+			case 0x0300:
+				return '`';
+			case 0x0301:
+				return 0x00B4; // acute
+			case 0x0302:
+			case 0x02C6:
+				return '^';
+			case 0x0303:
+			case 0x02DC:
+				return '~';
+			case 0x0308:
+				return 0x00A8; // diaeresis
+			default:
+				return accent;
+		}
 	}
 
 	public void processCustomKeyEvent(int keycode)

@@ -29,6 +29,7 @@ import android.view.MenuItem;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.widget.SearchView;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.freerdp.freerdpcore.R;
@@ -118,6 +119,7 @@ public class HomeActivity extends AppCompatActivity
 			@Override public void onDelete(long id)
 			{
 				viewModel.deleteBookmark(id);
+				com.freerdp.freerdpcore.utils.BookmarkAppearance.clear(HomeActivity.this, id);
 			}
 
 			@Override public void onExport(BookmarkBase bookmark)
@@ -126,7 +128,7 @@ public class HomeActivity extends AppCompatActivity
 			}
 		});
 
-		binding.recyclerViewBookmarks.setLayoutManager(new LinearLayoutManager(this));
+		applyViewMode();
 		binding.recyclerViewBookmarks.setAdapter(bookmarkListAdapter);
 
 		viewModel.getBookmarks().observe(this,
@@ -180,7 +182,41 @@ public class HomeActivity extends AppCompatActivity
 		MenuInflater inflater = getMenuInflater();
 		inflater.inflate(R.menu.home_menu, menu);
 		setupSearchView(menu);
+		updateViewModeItem(menu.findItem(R.id.toggleView));
 		return true;
+	}
+
+	// ---- list / icon (grid) view of the connections ----
+
+	private void applyViewMode()
+	{
+		final boolean grid = com.freerdp.freerdpcore.utils.BookmarkAppearance.isGridView(this);
+		if (grid)
+		{
+			final float widthDp = getResources().getConfiguration().screenWidthDp;
+			final int span = Math.max(2, (int)(widthDp / 180));
+			binding.recyclerViewBookmarks.setLayoutManager(new GridLayoutManager(this, span));
+		}
+		else
+			binding.recyclerViewBookmarks.setLayoutManager(new LinearLayoutManager(this));
+		bookmarkListAdapter.setGridMode(grid);
+	}
+
+	private void updateViewModeItem(MenuItem item)
+	{
+		if (item == null)
+			return;
+		final boolean grid = com.freerdp.freerdpcore.utils.BookmarkAppearance.isGridView(this);
+		// The item shows the mode it switches to.
+		item.setIcon(grid ? R.drawable.ic_bm_list : R.drawable.ic_bm_grid);
+		item.setTitle(grid ? R.string.menu_view_list : R.string.menu_view_grid);
+	}
+
+	@Override
+	public void onConfigurationChanged(@androidx.annotation.NonNull android.content.res.Configuration c)
+	{
+		super.onConfigurationChanged(c);
+		applyViewMode();
 	}
 
 	@Override public boolean onOptionsItemSelected(MenuItem item)
@@ -188,7 +224,14 @@ public class HomeActivity extends AppCompatActivity
 		// refer to http://tools.android.com/tips/non-constant-fields why we can't use switch/case
 		// here ..
 		int itemId = item.getItemId();
-		if (itemId == R.id.newBookmark)
+		if (itemId == R.id.toggleView)
+		{
+			com.freerdp.freerdpcore.utils.BookmarkAppearance.setGridView(
+			    this, !com.freerdp.freerdpcore.utils.BookmarkAppearance.isGridView(this));
+			applyViewMode();
+			updateViewModeItem(item);
+		}
+		else if (itemId == R.id.newBookmark)
 		{
 			Intent bookmarkIntent = new Intent(this, BookmarkActivity.class);
 			startActivity(bookmarkIntent);

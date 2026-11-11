@@ -51,9 +51,19 @@
     <string name="resolution_custom">Anpassad</string>
     <string-array name="resolutions_array">
         <item>Automatisk</item><item>Anpassa till skärmen</item><item>Anpassad</item><item>640x480</item><item>720x480</item><item>800x600</item><item>1024x768</item><item>1280x1024</item><item>1440x900</item><item>1920x1080</item><item>1920x1200</item>
+        <item>1500x1000</item>
+        <item>1800x1200</item>
+        <item>2100x1400</item>
+        <item>2250x1500</item>
+        <item>2400x1600</item>
     </string-array>
     <string-array name="resolutions_values_array" translatable="false">
         <item>automatic</item><item>fitscreen</item><item>custom</item><item>640x480</item><item>720x480</item><item>800x600</item><item>1024x768</item><item>1280x1024</item><item>1440x900</item><item>1920x1080</item><item>1920x1200</item>
+        <item>1500x1000</item>
+        <item>1800x1200</item>
+        <item>2100x1400</item>
+        <item>2250x1500</item>
+        <item>2400x1600</item>
     </string-array>
     <string name="settings_width">Bredd</string>
     <string name="settings_height">Höjd</string>

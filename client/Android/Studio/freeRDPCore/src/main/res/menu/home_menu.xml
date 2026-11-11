@@ -10,6 +10,12 @@
         app:actionViewClass="androidx.appcompat.widget.SearchView" />
 
     <item
+        android:id="@+id/toggleView"
+        android:icon="@drawable/ic_bm_grid"
+        app:showAsAction="ifRoom"
+        android:title="@string/menu_view_grid" />
+
+    <item
         android:id="@+id/newBookmark"
         android:icon="@drawable/ic_menu_add"
         app:showAsAction="ifRoom"

@@ -69,6 +69,14 @@ public class SessionView extends View
 	private float touchpadScrollX = 0;
 	private float touchpadScrollY = 0;
 
+	// Legacy (pre-Android 14) touchpad swipe: last position and leftover wheel units.
+	// Wheel units sent per pixel of finger travel (display pixels).
+	private static final float LEGACY_SWIPE_UNITS_PER_PX = 8.0f;
+	private float legacySwipeLastX = 0;
+	private float legacySwipeLastY = 0;
+	private float legacySwipeAccX = 0;
+	private float legacySwipeAccY = 0;
+
 	private int[] cursorPixels = null;
 	private int cursorWidth = 0;
 	private int cursorHeight = 0;
@@ -100,6 +108,9 @@ public class SessionView extends View
 		// Ensure the view is focusable so the soft keyboard can attach to it (required for API 30+)
 		setFocusable(true);
 		setFocusableInTouchMode(true);
+		// A hardware key press leaves touch mode and Android then draws the default focus
+		// highlight (~12% white) over the whole remote desktop; never draw it here.
+		setDefaultFocusHighlightEnabled(false);
 
 		invalidRegions = new Stack<>();
 		gestureDetector = new GestureDetector(context, new SessionGestureListener(), null, true);
@@ -171,6 +182,64 @@ public class SessionView extends View
 
 		requestLayout();
 		currentSession = session;
+		if (autoFit)
+			applyFitZoom();
+	}
+
+	// ---- Fit-to-screen ---------------------------------------------------------
+	// While autoFit is on, the remote desktop is scaled to fill the viewport (aspect kept),
+	// so a lower session resolution still uses the whole screen. A pinch turns it off;
+	// "reset zoom" turns it back on.
+	private boolean autoFit = true;
+	private int viewportWidth = 0;
+	private int viewportHeight = 0;
+
+	// Called with the visible area of the scroll view (from onGlobalLayout).
+	public void setViewportSize(int w, int h)
+	{
+		if (w <= 0 || h <= 0)
+			return;
+		// Ignore a height-only shrink (soft keyboard showing): keep the zoom as it is.
+		final boolean imeLike = (w == viewportWidth) && (h < viewportHeight);
+		final boolean changed = (w != viewportWidth) || (h != viewportHeight);
+		viewportWidth = w;
+		viewportHeight = imeLike ? viewportHeight : h;
+		if (changed && !imeLike && autoFit)
+			applyFitZoom();
+	}
+
+	public float getFitZoom()
+	{
+		if (width <= 0 || height <= 0 || viewportWidth <= 0 || viewportHeight <= 0)
+			return 1.0f;
+		float fit = Math.min((float)viewportWidth / width, (float)viewportHeight / height);
+		return Math.max(0.1f, Math.min(fit, MAX_SCALE_FACTOR));
+	}
+
+	// Smallest zoom a pinch may reach: never above the fit zoom.
+	public float getMinZoom()
+	{
+		return Math.min(MIN_SCALE_FACTOR, getFitZoom());
+	}
+
+	public void setAutoFit(boolean on)
+	{
+		autoFit = on;
+		if (on)
+			applyFitZoom();
+	}
+
+	private void applyFitZoom()
+	{
+		if (width <= 0 || viewportWidth <= 0)
+			return;
+		final float fit = getFitZoom();
+		if (Math.abs(fit - scaleFactor) > SCALE_FACTOR_DELTA)
+		{
+			Log.d(TAG, "fit zoom " + width + "x" + height + " -> " + viewportWidth + "x" +
+			               viewportHeight + " = " + fit);
+			setZoom(fit);
+		}
 	}
 
 	public float getZoom()
@@ -218,7 +287,7 @@ public class SessionView extends View
 
 	public boolean isAtMinZoom()
 	{
-		return (scaleFactor < (MIN_SCALE_FACTOR + SCALE_FACTOR_DELTA));
+		return (scaleFactor < (getMinZoom() + SCALE_FACTOR_DELTA));
 	}
 
 	public boolean zoomIn(float factor)
@@ -238,9 +307,9 @@ public class SessionView extends View
 	{
 		boolean res = true;
 		scaleFactor -= factor;
-		if (scaleFactor < (MIN_SCALE_FACTOR + SCALE_FACTOR_DELTA))
+		if (scaleFactor < (getMinZoom() + SCALE_FACTOR_DELTA))
 		{
-			scaleFactor = MIN_SCALE_FACTOR;
+			scaleFactor = getMinZoom();
 			res = false;
 		}
 		setZoom(scaleFactor);
@@ -329,6 +398,15 @@ public class SessionView extends View
 				mapped.recycle();
 				return true;
 			}
+			// Android < 14 (e.g. HarmonyOS 4): the touchpad runs in "pointer" mode and a
+			// two-finger swipe arrives as a button-less finger stream (DOWN/MOVE/UP)
+			// without CLASSIFICATION_TWO_FINGER_SWIPE.
+			if (event.getButtonState() == 0 &&
+			    event.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER)
+			{
+				handleLegacyTouchpadSwipe(event);
+				return true;
+			}
 			return true;
 		}
 
@@ -361,6 +439,46 @@ public class SessionView extends View
 			final boolean right = touchpadScrollX > 0;
 			touchpadScrollX += right ? -notchPxX : notchPxX;
 			sessionViewListener.onSessionViewHScroll(right);
+		}
+	}
+
+	// Turn a legacy touchpad swipe stream into proportional wheel events.
+	// The units are passed through Mouse.getScrollEvent(), which flips them while
+	// "Invert Scrolling" is on (the default). With the default setting the result is
+	// natural scrolling: content follows the fingers, as in Windows App.
+	private void handleLegacyTouchpadSwipe(MotionEvent event)
+	{
+		final float x = event.getX();
+		final float y = event.getY();
+		switch (event.getActionMasked())
+		{
+			case MotionEvent.ACTION_DOWN:
+				Log.d(TAG, "legacy touchpad swipe: pointers=" + event.getPointerCount() +
+				               " source=0x" + Integer.toHexString(event.getSource()) +
+				               " class=" + event.getClassification());
+				legacySwipeLastX = x;
+				legacySwipeLastY = y;
+				legacySwipeAccX = 0;
+				legacySwipeAccY = 0;
+				break;
+			case MotionEvent.ACTION_MOVE:
+			{
+				legacySwipeAccY += (legacySwipeLastY - y) * LEGACY_SWIPE_UNITS_PER_PX;
+				legacySwipeAccX += (x - legacySwipeLastX) * LEGACY_SWIPE_UNITS_PER_PX;
+				legacySwipeLastX = x;
+				legacySwipeLastY = y;
+				final int v = (int)legacySwipeAccY;
+				final int h = (int)legacySwipeAccX;
+				legacySwipeAccY -= v;
+				legacySwipeAccX -= h;
+				if (v != 0 || h != 0)
+					sessionViewListener.onSessionViewWheel(v, h);
+				break;
+			}
+			default:
+				legacySwipeAccX = 0;
+				legacySwipeAccY = 0;
+				break;
 		}
 	}
 
@@ -447,6 +565,9 @@ public class SessionView extends View
 		void onSessionViewScroll(boolean down);
 
 		void onSessionViewHScroll(boolean right);
+
+		// Signed wheel rotation units (positive = up / right), any magnitude.
+		void onSessionViewWheel(int vAmount, int hAmount);
 	}
 
 	public void setRemoteCursor(int[] pixels, int width, int height, int hotX, int hotY)

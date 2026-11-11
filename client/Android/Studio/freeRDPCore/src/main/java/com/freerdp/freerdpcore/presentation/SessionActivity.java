@@ -251,6 +251,7 @@ public class SessionActivity extends AppCompatActivity
 				                   scrollView.getPaddingRight();
 				    screen_height = scrollView.getHeight() - scrollView.getPaddingTop() -
 				                    scrollView.getPaddingBottom();
+				    sessionView.setViewportSize(screen_width, screen_height);
 
 				    // start session
 				    if (!sessionRunning && getIntent() != null)

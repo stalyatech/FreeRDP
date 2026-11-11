@@ -207,6 +207,8 @@ public class ScrollView2D extends FrameLayout
 	{
 		mScroller = new Scroller(getContext());
 		setFocusable(true);
+		// No focus highlight over the session (see SessionView).
+		setDefaultFocusHighlightEnabled(false);
 		setDescendantFocusability(FOCUS_AFTER_DESCENDANTS);
 		setWillNotDraw(false);
 		final ViewConfiguration configuration = ViewConfiguration.get(getContext());
@@ -281,7 +283,9 @@ public class ScrollView2D extends FrameLayout
 		 * motion.
 		 */
 		// Let child handle touchpad scroll gestures.
-		if (ev.getClassification() == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE)
+		// Also on Android < 14, where the swipe comes as a mouse-source finger stream.
+		if (ev.getClassification() == MotionEvent.CLASSIFICATION_TWO_FINGER_SWIPE ||
+		    ev.isFromSource(android.view.InputDevice.SOURCE_MOUSE))
 		{
 			mIsBeingDragged = false;
 			return false;
