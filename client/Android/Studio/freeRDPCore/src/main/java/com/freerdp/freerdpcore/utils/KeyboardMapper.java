@@ -728,7 +728,7 @@ public class KeyboardMapper
 		if (pendingAccent != 0)
 		{
 			// The same dead key twice types the accent; two different ones, the first accent.
-			listener.processKeyAsUnicode(pendingAccentVk, pendingAccent, modmask);
+			listener.processKeyAsUnicode(pendingAccentVk, spacingAccent(pendingAccent), modmask);
 			boolean same = accent == pendingAccent;
 			pendingAccent = 0;
 			if (same)
@@ -743,16 +743,58 @@ public class KeyboardMapper
 	// for the acute accent and Space on a Pixel 9 Pro running Android 17.
 	private void processAccentedKey(int vk, int unicode, int modmask)
 	{
-		int composed =
-		    unicode == ' ' ? pendingAccent : KeyEvent.getDeadChar(pendingAccent, unicode);
+		int composed = unicode == ' ' ? spacingAccent(pendingAccent)
+		                              : KeyEvent.getDeadChar(pendingAccent, unicode);
 		if (composed != 0)
 			listener.processKeyAsUnicode(pendingAccentVk, composed, modmask);
 		else
 		{
-			listener.processKeyAsUnicode(pendingAccentVk, pendingAccent, modmask);
+			listener.processKeyAsUnicode(pendingAccentVk, spacingAccent(pendingAccent), modmask);
 			listener.processKeyAsUnicode(vk, unicode, modmask);
 		}
 		pendingAccent = 0;
+	}
+
+	// The accent typed on its own, as the ASCII or Latin-1 character the key is labelled with.
+	// Android reports a dead key's accent either as a combining mark (U+0303 for the tilde) or as
+	// a spacing modifier letter (U+02DC small tilde, U+02CB modifier grave on a Turkish layout).
+	// Servers that type characters through their keymap, such as xrdp, have neither and drop them.
+	private static int spacingAccent(int accent)
+	{
+		switch (accent)
+		{
+			case 0x0300:
+			case 0x02CB:
+				return '`';
+			case 0x0301:
+				return 0x00B4; // acute accent
+			case 0x0302:
+			case 0x02C6:
+				return '^';
+			case 0x0303:
+			case 0x02DC:
+				return '~';
+			case 0x0304:
+				return 0x00AF; // macron
+			case 0x0306:
+				return 0x02D8; // breve
+			case 0x0307:
+				return 0x02D9; // dot above
+			case 0x0308:
+				return 0x00A8; // diaeresis
+			case 0x030A:
+				return 0x02DA; // ring above
+			case 0x030B:
+				return 0x02DD; // double acute
+			case 0x030C:
+				return 0x02C7; // caron
+			case 0x0327:
+				return 0x00B8; // cedilla
+			case 0x0328:
+				return 0x02DB; // ogonek
+			default:
+				return accent;
+		}
 	}
 
 	// The modifiers Android reports for the event, as the library's FREERDP_CLIENT_KBD_MOD mask.
