@@ -59,6 +59,11 @@
         <item>1440x900</item>
         <item>1920x1080</item>
         <item>1920x1200</item>
+        <item>1500x1000</item>
+        <item>1800x1200</item>
+        <item>2100x1400</item>
+        <item>2250x1500</item>
+        <item>2400x1600</item>
     </string-array>
     <!-- end protected string section -->
     <string name="settings_width">Ancho</string>

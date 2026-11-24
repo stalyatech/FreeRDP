@@ -15,13 +15,14 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.freerdp.freerdpcore.R;
-import com.freerdp.freerdpcore.databinding.BookmarkListItemBinding;
 import com.freerdp.freerdpcore.domain.BookmarkBase;
 import com.freerdp.freerdpcore.domain.ConnectionReference;
 import com.freerdp.freerdpcore.presentation.BookmarkActivity;
@@ -41,6 +42,24 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 	private List<BookmarkBase> items = new ArrayList<>();
 	private Callbacks callbacks;
 	private boolean actionsEnabled = true;
+	private boolean gridMode = false;
+
+	private static final int TYPE_LIST = 0;
+	private static final int TYPE_GRID = 1;
+
+	// Grid (tile) or list layout for the items.
+	public void setGridMode(boolean grid)
+	{
+		if (gridMode == grid)
+			return;
+		gridMode = grid;
+		notifyDataSetChanged();
+	}
+
+	@Override public int getItemViewType(int position)
+	{
+		return gridMode ? TYPE_GRID : TYPE_LIST;
+	}
 
 	public void setCallbacks(Callbacks callbacks)
 	{
@@ -65,9 +84,10 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 
 	@NonNull @Override public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType)
 	{
-		BookmarkListItemBinding binding = BookmarkListItemBinding.inflate(
-		    LayoutInflater.from(parent.getContext()), parent, false);
-		return new ViewHolder(binding);
+		final int layout =
+		    viewType == TYPE_GRID ? R.layout.bookmark_grid_item : R.layout.bookmark_list_item;
+		return new ViewHolder(
+		    LayoutInflater.from(parent.getContext()).inflate(layout, parent, false));
 	}
 
 	@Override public void onBindViewHolder(@NonNull ViewHolder holder, int position)
@@ -75,61 +95,64 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 		BookmarkBase bookmark = items.get(position);
 		String refStr;
 
-		holder.binding.bookmarkText1.setText(bookmark.getLabel());
+		holder.bookmarkText1.setText(bookmark.getLabel());
 
 		if (bookmark.getType() == BookmarkBase.TYPE_MANUAL)
 		{
-			holder.binding.bookmarkIcon1.setImageResource(R.drawable.ic_computer);
-			holder.binding.bookmarkIcon1.setVisibility(View.VISIBLE);
-			holder.binding.bookmarkText2.setVisibility(View.VISIBLE);
-			holder.binding.bookmarkText2.setText(bookmark.getHostname());
+			BookmarkAppearance.applyTile(holder.bookmarkIcon1, holder.itemView.getContext(),
+			                             bookmark, gridMode ? 22 : 10);
+			holder.bookmarkIcon1.setVisibility(View.VISIBLE);
+			holder.bookmarkText2.setVisibility(View.VISIBLE);
+			holder.bookmarkText2.setText(bookmark.getHostname());
 			refStr = ConnectionReference.getBookmarkReference(bookmark.getId());
 
 			if (actionsEnabled)
 			{
-				holder.binding.bookmarkIcon2.setVisibility(View.VISIBLE);
-				holder.binding.bookmarkIcon2.setImageResource(R.drawable.ic_more_vert);
+				holder.bookmarkIcon2.setVisibility(View.VISIBLE);
+				holder.bookmarkIcon2.setImageResource(R.drawable.ic_more_vert);
 				final String finalRefStr = refStr;
 				final long bookmarkId = bookmark.getId();
-				holder.binding.bookmarkIcon2.setOnClickListener(
+				holder.bookmarkIcon2.setOnClickListener(
 				    v -> showBookmarkMenu(v, finalRefStr, bookmarkId, bookmark));
 				holder.itemView.setOnLongClickListener(v -> {
-					showBookmarkMenu(holder.binding.bookmarkIcon2, finalRefStr, bookmarkId,
+					showBookmarkMenu(holder.bookmarkIcon2, finalRefStr, bookmarkId,
 					                 bookmark);
 					return true;
 				});
 			}
 			else
 			{
-				holder.binding.bookmarkIcon2.setVisibility(View.GONE);
-				holder.binding.bookmarkIcon2.setOnClickListener(null);
+				holder.bookmarkIcon2.setVisibility(View.GONE);
+				holder.bookmarkIcon2.setOnClickListener(null);
 				holder.itemView.setOnLongClickListener(null);
 			}
 		}
 		else if (bookmark.getType() == BookmarkBase.TYPE_QUICKCONNECT)
 		{
-			holder.binding.bookmarkText2.setVisibility(View.GONE);
+			holder.bookmarkIcon1.setBackground(null);
+			holder.bookmarkIcon1.clearColorFilter();
+			holder.bookmarkText2.setVisibility(View.GONE);
 			refStr = ConnectionReference.getHostnameReference(bookmark.getHostname());
 			holder.itemView.setOnLongClickListener(null);
 
 			if (bookmark.isDirectConnect())
 			{
-				holder.binding.bookmarkText1.setText(holder.itemView.getContext().getString(
+				holder.bookmarkText1.setText(holder.itemView.getContext().getString(
 				    R.string.quick_connect_to, bookmark.getHostname()));
-				holder.binding.bookmarkIcon1.setImageResource(R.drawable.ic_login);
-				holder.binding.bookmarkIcon1.setVisibility(View.VISIBLE);
-				holder.binding.bookmarkIcon2.setVisibility(View.GONE);
-				holder.binding.bookmarkIcon2.setOnClickListener(null);
+				holder.bookmarkIcon1.setImageResource(R.drawable.ic_login);
+				holder.bookmarkIcon1.setVisibility(View.VISIBLE);
+				holder.bookmarkIcon2.setVisibility(View.GONE);
+				holder.bookmarkIcon2.setOnClickListener(null);
 			}
 			else
 			{
-				holder.binding.bookmarkText1.setText(bookmark.getLabel());
-				holder.binding.bookmarkIcon1.setImageResource(R.drawable.ic_history);
-				holder.binding.bookmarkIcon1.setVisibility(View.VISIBLE);
-				holder.binding.bookmarkIcon2.setVisibility(View.VISIBLE);
-				holder.binding.bookmarkIcon2.setImageResource(R.drawable.ic_bookmark_add);
+				holder.bookmarkText1.setText(bookmark.getLabel());
+				holder.bookmarkIcon1.setImageResource(R.drawable.ic_history);
+				holder.bookmarkIcon1.setVisibility(View.VISIBLE);
+				holder.bookmarkIcon2.setVisibility(View.VISIBLE);
+				holder.bookmarkIcon2.setImageResource(R.drawable.ic_bookmark_add);
 				final String hostname = bookmark.getHostname();
-				holder.binding.bookmarkIcon2.setOnClickListener(v -> {
+				holder.bookmarkIcon2.setOnClickListener(v -> {
 					Bundle bundle = new Bundle();
 					bundle.putString(BookmarkActivity.PARAM_CONNECTION_REFERENCE,
 					                 ConnectionReference.getHostnameReference(hostname));
@@ -141,11 +164,11 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 		}
 		else
 		{
-			holder.binding.bookmarkIcon1.setVisibility(View.GONE);
-			holder.binding.bookmarkText2.setVisibility(View.GONE);
+			holder.bookmarkIcon1.setVisibility(View.GONE);
+			holder.bookmarkText2.setVisibility(View.GONE);
 			refStr = "";
-			holder.binding.bookmarkIcon2.setVisibility(View.GONE);
-			holder.binding.bookmarkIcon2.setOnClickListener(null);
+			holder.bookmarkIcon2.setVisibility(View.GONE);
+			holder.bookmarkIcon2.setOnClickListener(null);
 		}
 
 		holder.itemView.setTag(refStr);
@@ -189,6 +212,12 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 					callbacks.onDelete(bookmarkId);
 				return true;
 			}
+			else if (itemId == R.id.bookmark_appearance)
+			{
+				BookmarkAppearance.showPicker(anchor.getContext(), bookmark,
+				                              this::notifyDataSetChanged);
+				return true;
+			}
 			else if (itemId == R.id.bookmark_export)
 			{
 				if (callbacks != null)
@@ -202,12 +231,18 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<BookmarkListAdapte
 
 	static class ViewHolder extends RecyclerView.ViewHolder
 	{
-		final BookmarkListItemBinding binding;
+		final ImageView bookmarkIcon1;
+		final ImageView bookmarkIcon2;
+		final TextView bookmarkText1;
+		final TextView bookmarkText2;
 
-		ViewHolder(BookmarkListItemBinding binding)
+		ViewHolder(View view)
 		{
-			super(binding.getRoot());
-			this.binding = binding;
+			super(view);
+			bookmarkIcon1 = view.findViewById(R.id.bookmark_icon1);
+			bookmarkIcon2 = view.findViewById(R.id.bookmark_icon2);
+			bookmarkText1 = view.findViewById(R.id.bookmark_text1);
+			bookmarkText2 = view.findViewById(R.id.bookmark_text2);
 		}
 	}
 }
